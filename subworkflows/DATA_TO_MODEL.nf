@@ -4,6 +4,10 @@ nextflow.enable.dsl = 2
 
 // Synapse ID for Submission View
 params.view_id = "syn52576179"
+// Scoring Script
+params.scoring_script = "score.py"
+// Validation Script
+params.validation_script = "validate.py"
 
 // import modules
 include { SYNAPSE_STAGE } from '../modules/synapse_stage.nf'
@@ -24,10 +28,10 @@ workflow DATA_TO_MODEL {
         .map { row -> tuple(row.submission_id, row.image_id) }
     UPDATE_SUBMISSION_STATUS_BEFORE_RUN(image_ch.map { tuple(it[0], "EVALUATION_IN_PROGRESS") })
     DOWNLOAD_SUBMISSION(image_ch.map {it[0]})
-    VALIDATE(DOWNLOAD_SUBMISSION.output, "ready")
+    VALIDATE(DOWNLOAD_SUBMISSION.output, "ready", params.validation_script)
     UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE(VALIDATE.output.map { tuple(it[0], it[2]) })
     ANNOTATE_SUBMISSION_AFTER_VALIDATE(VALIDATE.output)
-    SCORE(VALIDATE.output, UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE.output, ANNOTATE_SUBMISSION_AFTER_VALIDATE.output)
+    SCORE(VALIDATE.output, UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE.output, ANNOTATE_SUBMISSION_AFTER_VALIDATE.output, params.scoring_script)
     UPDATE_SUBMISSION_STATUS_AFTER_SCORE(SCORE.output.map { tuple(it[0], it[2]) })
     ANNOTATE_SUBMISSION_AFTER_SCORE(SCORE.output)
 }

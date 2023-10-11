@@ -7,12 +7,13 @@ process SCORE {
     tuple val(submission_id), path(predictions), val(status), path(results)
     val status_ready
     val annotate_ready
+    val scoring_script
 
     output:
     tuple val(submission_id), path(predictions), stdout, path("results.json")
 
     script:
     """
-    score.py '${predictions}' '${results}' '${status}'
+    ${scoring_script} '${predictions}' '${results}' '${status}'
     """
 }
