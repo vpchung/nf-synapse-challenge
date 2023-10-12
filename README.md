@@ -35,12 +35,14 @@ In order to use this workflow, you must already have completed the following ste
 
 ### Running the workflow
 
-The workflow takes several inputs:
+The workflow takes the following inputs:
 
 1. `view_id` (required): The Synapse ID for your submission view.
 2. `input_id` (required): The Synapse ID for the folder holding the testing data for submissions.
 3. `cpus` (required): Number of CPUs to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `4`
 4. `memory` (required): Amount of memory to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `16.GB`
+5. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `score.py`
+6. `validation_script` (required): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
 
 Run the workflow locally with default inputs:
 ```
@@ -81,9 +83,11 @@ In order to use this workflow, you must already have completed the following ste
 
 ### Running the workflow
 
-The workflow requires one input:
+The workflow requires the following inputs:
 
 1. `view_id` (required): The Synapse ID for your submission view.
+2. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `score.py`
+3. `validation_script` (required): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
 
 Run the workflow locally with default inputs:
 ```
@@ -114,7 +118,13 @@ The workflow includes two preconfigured `profiles` for memory and CPU allocation
 
 ## Adding Support for New Challenge Types
 
+### Adding a New Subworkflow
+
 If you would like to add support for a new challenge type, you can do so by creating a new subworkflow in the `subworkflows` directory. Name your subworkflow clearly with the name of the new challenge type. You should try to use the existing library of modules to build your subworkflow. It is important to not change the logic of existing modules to avoid breaking other subworkflows. Rather, you should add new process definitions to the `modules` folder and give them clear names that indicate their purpose. Once you have created your subworkflow, you can add it to the `main.nf` file and test it using:
 ```
 nextflow run main.nf -entry {your_new_subworkflow_name}
 ```
+
+### Adding New Scoring and Validation Scripts
+
+If you would like to contribute new scoring or validation scripts, you can do so by giving your scripts a descriptive name such as `my_challenge_scoring.py` and adding them to the `bin` directory. You can then pass the name of your new scripts to the workflow using the `scoring_script` and `validation_script` parameters. The workflow will then use them in the appropriate steps.
