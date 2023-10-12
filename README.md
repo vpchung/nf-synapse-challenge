@@ -49,7 +49,24 @@ nextflow run main.nf -entry MODEL_TO_DATA_CHALLENGE -profile local
 
 ### Workflow DAG
 
-![Alt text](img/model_to_data_dag.png)
+```mermaid
+  flowchart LR;
+    A[SYNAPSE STAGE]-->D[UPDATE STATUS];
+    B[GET SUBMISSIONS]-->C([NEW SUBMISSIONS?]);
+    C-->|YES|D;
+    C-->|NO|END;
+    D-->E[RUN DOCKER];
+    E-->F[UPDATE STATUS];
+    F-->G[VALIDATE];
+    G-->H[UPDATE STATUS];
+    G-->I[ANNOTATE];
+    H-->J[SCORE];
+    I-->J;
+    J-->K[UPDATE STATUS];
+    J-->L[ANNOTATE];
+    K-->END;
+    L-->END;
+```
 
 ## Data-to-Model Challenges
 
@@ -75,7 +92,21 @@ nextflow run main.nf -entry DATA_TO_MODEL_CHALLENGE -profile local
 
 ### Workflow DAG
 
-![Alt text](img/data_to_model_dag.png)
+```mermaid
+  flowchart LR;
+    A[GET SUBMISSIONS]-->B([NEW SUBMISSIONS?]);
+    B-->|YES|C[UPDATE STATUS];
+    B-->|NO|END;
+    C-->D[DOWNLOAD SUBMISSIONS];
+    D-->E[VALIDATE];
+    E-->F[UPDATE STATUS];
+    E-->G[ANNOTATE];
+    F-->H[SCORE];
+    G-->H;
+    H-->I[UPDATE STATUS];
+    H-->J[ANNOTATE];
+    I-->END;
+```
 
 ## Profiles
 
