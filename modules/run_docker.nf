@@ -19,6 +19,6 @@ process RUN_DOCKER {
     script:
     """
     echo \$SYNAPSE_AUTH_TOKEN | docker login docker.synapse.org --username foo --password-stdin
-    docker run -v \$PWD/input:/input:ro -v \$PWD:/output:rw $container
+    docker run --network none -v \$PWD/input:/input:ro -v \$PWD:/output:rw $container
     """
 }
