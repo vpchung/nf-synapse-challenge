@@ -5,6 +5,7 @@ from typing import List, Union
 
 import send_email
 import synapseclient
+import synapseutils
 
 
 def create_folder(
@@ -22,6 +23,7 @@ def create_folder(
 
     Returns:
         The created Synapse Folder entity
+
     """
 
     # Create Folder object
@@ -32,9 +34,57 @@ def create_folder(
     return subfolder
 
 
-# TODO: https://sagebionetworks.jira.com/browse/IBCDPE-809
-# def update_subfolders():
-#     """"""
+def prefix_filename(
+    syn: synapseclient.Synapse, prefix_name: str, old_file_entity: synapseclient.File
+) -> None:
+    """
+    Prefixes the name of the old file entity with the desired ``prefix_name`` and updates the file name and metadata in Synapse.
+
+    Arguments:
+        syn: The Synapse Python client instance
+        prefix_name: The prefix to be added to your Synapse File name
+        old_file_entity: The old File entity to be updated
+
+    """
+    filename = old_file_entity.name
+    predictions_file_name = f"{prefix_name}_{filename}"
+
+    updated_file_entity = synapseutils.changeFileMetaData(
+        syn,
+        entity=old_file_entity,
+        downloadAs=predictions_file_name,
+        forceVersion=False,
+    )
+    updated_file_entity.name = predictions_file_name
+    syn.store(updated_file_entity)
+
+
+def update_subfolders(
+    syn: synapseclient.Synapse,
+    predictions_file: str,
+    submitter_id: str,
+    parent_id: Union[str, synapseclient.Entity],
+) -> synapseclient.File:
+    """
+    Update subfolders based on the given predictions file, submitter ID, and parent ID, and returns the file entity.
+
+    Arguments:
+        syn: A Synapse Python client instance
+        predictions_file: The name of the predictions file
+        submitter_id: The ID of the submitter
+        parent_id: The ID of the parent folder
+    """
+    submitter_folder = syn.findEntityId(submitter_id, parent_id)
+
+    predictions_folder = syn.findEntityId("predictions", submitter_folder )
+
+    if not predictions_folder:
+        raise ValueError(f"Could not find predictions subfolder on Synapse for submitter ID: {submitter_id}")
+
+    file_entity = syn.store(
+        synapseclient.File(predictions_file, parentId=predictions_folder)
+    )
+    return file_entity
 
 
 def update_permissions(
@@ -74,7 +124,8 @@ def update_permissions(
 def create_folders(
     project_name: str,
     submission_id: str,
-    build_or_update: str,
+    create_or_update: str,
+    predictions_file: Union[None, str],
     subfolders: List[str] = ["workflow_logs", "predictions"],
     only_admins: str = "predictions",
     root_folder_name: str = "Logs",
@@ -93,9 +144,11 @@ def create_folders(
     Arguments:
         project_name: The name of the Project
         submission_id: The Submission ID of the submission being processed
-        build_or_update: Determines whether the Folder structure will be built
+        create_or_update: Determines whether the Folder structure will be built
                          from scratch, or updated with new output files. Value
-                         can either be ''build'' or ''update''.
+                         can either be ''create'' or ''update''.
+        predictions_file: The name of the predictions file that the predictions folder
+                          should be updated with.
         subfolders: The subfolders to be created under the parent folder.
         only_admins: The name of the subfolder that will have local share settings
                      differing from the other subfolders.
@@ -109,10 +162,11 @@ def create_folders(
     project_id = syn.findEntityId(name=project_name)
     submitter_id = send_email.get_participant_id(syn, submission_id)[0]
 
-    if build_or_update == "build":
-
+    if create_or_update == "create":
         # Create the Root-Folder/ directly under Project
-        root_folder = create_folder(syn, folder_name=root_folder_name, parent=project_id)
+        root_folder = create_folder(
+            syn, folder_name=root_folder_name, parent=project_id
+        )
 
         # Creating the level 1 (directly under Root-Folder/) subfolder,
         # which is named after the submitters' team/userIds.
@@ -143,13 +197,38 @@ def create_folders(
                     access_type=[],
                 )
 
-    # TODO: https://sagebionetworks.jira.com/browse/IBCDPE-809
-    # elif build_or_update == "update":
-    #     update_subfolders(syn, parent_folder_id)
+    elif create_or_update == "update":
+
+        if not predictions_file:
+            raise ValueError(
+                "Predictions file(s) must be provided to update folders. Exiting."
+            )
+
+        root_folder_id = syn.findEntityId(name=root_folder_name, parent=project_id)
+
+        file_entity = update_subfolders(
+            syn,
+            predictions_file=predictions_file,
+            submitter_id=submitter_id,
+            parent_id=root_folder_id,
+        )
+        prefix_filename(syn, prefix_name=submission_id, old_file_entity=file_entity)
+
+    else:
+        raise ValueError(
+            "``create_or_update`` must be either 'create' or 'update'. Exiting."
+        )
 
 
 if __name__ == "__main__":
     project_name = sys.argv[1]
     submission_id = sys.argv[2]
     create_or_update = sys.argv[3]
-    create_folders(project_name, submission_id, create_or_update)
+    predictions_file = sys.argv[4] if len(sys.argv) > 4 else None
+
+    create_folders(
+        project_name=project_name,
+        submission_id=submission_id,
+        create_or_update=create_or_update,
+        predictions_file=predictions_file,
+    )
