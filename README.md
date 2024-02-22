@@ -43,7 +43,7 @@ The workflow takes the following inputs:
 4. `email_with_score` (optional & case-sensitive): Choose whether or not the e-mail sent out to participants will include the evaluation score or not. Can either be "yes" or "no". Defaults to "yes".
 5. `cpus` (optional): Number of CPUs to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `4`
 6. `memory` (optional): Amount of memory to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `16.GB`
-7. `scoring_script` (optional): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `score.py`
+7. `scoring_script` (optional): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `model_to_data_score.py`
 8. `validation_script` (optional): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
 
 Run the workflow locally with default inputs:
@@ -94,8 +94,9 @@ In order to use this workflow, you must already have completed the following ste
 The workflow requires the following inputs:
 
 1. `view_id` (required): The Synapse ID for your submission view.
-2. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `score.py`
+2. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `data_to_model_score.py`
 3. `validation_script` (required): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
+4. `testing_data` (required): The Synapse ID for the folder holding the testing data for submissions.
 
 Run the workflow locally with default inputs:
 ```
@@ -106,18 +107,19 @@ nextflow run main.nf -entry DATA_TO_MODEL_CHALLENGE -profile local
 
 ```mermaid
   flowchart LR;
-    A[GET SUBMISSIONS]-->B([NEW SUBMISSIONS?]);
-    B-->|YES|C[UPDATE STATUS];
-    B-->|NO|END;
-    C-->D[DOWNLOAD SUBMISSIONS];
-    D-->E[VALIDATE];
-    E-->F[UPDATE STATUS];
-    E-->G[ANNOTATE];
-    F-->H[SCORE];
-    G-->H;
-    H-->I[UPDATE STATUS];
-    H-->J[ANNOTATE];
-    I-->END;
+    A[SYNAPSE STAGE]-->I[SCORE];
+    B[GET SUBMISSIONS]-->C([NEW SUBMISSIONS?]);
+    C-->|YES|D[UPDATE STATUS];
+    C-->|NO|END;
+    D-->E[DOWNLOAD SUBMISSIONS];
+    E-->F[VALIDATE];
+    F-->G[UPDATE STATUS];
+    F-->H[ANNOTATE];
+    G-->I[SCORE];
+    H-->I;
+    I-->J[UPDATE STATUS];
+    I-->K[ANNOTATE];
+    J-->END;
 ```
 
 ## Profiles

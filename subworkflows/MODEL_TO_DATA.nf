@@ -15,7 +15,7 @@ params.cpus = "4"
 // Default Memory to dedicate to RUN_DOCKER
 params.memory = "16.GB"
 // Scoring Script
-params.scoring_script = "score.py"
+params.scoring_script = "model_to_data_score.py"
 // Validation Script
 params.validation_script = "validate.py"
 
@@ -33,13 +33,13 @@ include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_AFTER_RUN } from 
 include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE } from '../modules/update_submission_status.nf'
 include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_AFTER_SCORE } from '../modules/update_submission_status.nf'
 include { VALIDATE } from '../modules/validate.nf'
-include { SCORE } from '../modules/score.nf'
+include { SCORE_MODEL_TO_DATA as SCORE } from '../modules/score_model_to_data.nf'
 include { ANNOTATE_SUBMISSION as ANNOTATE_SUBMISSION_AFTER_VALIDATE } from '../modules/annotate_submission.nf'
 include { ANNOTATE_SUBMISSION as ANNOTATE_SUBMISSION_AFTER_SCORE } from '../modules/annotate_submission.nf'
 include { SEND_EMAIL } from '../modules/send_email.nf'
 
 workflow MODEL_TO_DATA {
-    SYNAPSE_STAGE(params.input_id)
+    SYNAPSE_STAGE(params.input_id, "input")
     GET_SUBMISSIONS(params.view_id)
     image_ch = GET_SUBMISSIONS.output 
         .splitCsv(header:true) 

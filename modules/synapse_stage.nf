@@ -7,12 +7,13 @@ process SYNAPSE_STAGE {
 
     input:
     val input_id
+    val input_folder_name
 
     output:
-    path "input/"
+    path "${input_folder_name}/"
 
     script:
     """    
-    synapse get -r --downloadLocation \$PWD/input ${input_id}
+    synapse get -r --downloadLocation \$PWD/${input_folder_name} ${input_id}
     """
 }

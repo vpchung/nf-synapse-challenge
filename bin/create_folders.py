@@ -76,10 +76,12 @@ def update_subfolders(
     """
     submitter_folder = syn.findEntityId(submitter_id, parent_id)
 
-    predictions_folder = syn.findEntityId("predictions", submitter_folder )
+    predictions_folder = syn.findEntityId("predictions", submitter_folder)
 
     if not predictions_folder:
-        raise ValueError(f"Could not find predictions subfolder on Synapse for submitter ID: {submitter_id}")
+        raise ValueError(
+            f"Could not find predictions subfolder on Synapse for submitter ID: {submitter_id}"
+        )
 
     file_entity = syn.store(
         synapseclient.File(predictions_file, parentId=predictions_folder)

@@ -1,5 +1,7 @@
 // change submission status
 process UPDATE_SUBMISSION_STATUS {
+    tag "${submission_id}"
+    
     secret "SYNAPSE_AUTH_TOKEN"
     container "sagebionetworks/challengeutils:v4.2.0"
 

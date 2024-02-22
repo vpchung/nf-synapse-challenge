@@ -9,3 +9,6 @@ params_file.yaml
 
 #development
 dev/
+
+#cache
+.DS_store

@@ -1,5 +1,7 @@
 // runs docker containers
 process RUN_DOCKER {
+    tag "${submission_id}"
+    
     secret "SYNAPSE_AUTH_TOKEN"
     cpus "${cpus}"
     memory "${memory}"

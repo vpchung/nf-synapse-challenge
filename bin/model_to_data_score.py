@@ -4,9 +4,15 @@ import glob
 import json
 import os
 import sys
+import typing
 import zipfile
 
-def score_submission(predictions_path: str, status: str) -> dict:
+
+INVALID = "INVALID"
+SCORED = "SCORED"
+
+
+def score_submission(predictions_path: str, status: str) -> typing.Tuple[str, dict]:
     """Determine the score of a submission. This is a placeholder function.
 
     Args:
@@ -16,14 +22,14 @@ def score_submission(predictions_path: str, status: str) -> dict:
     Returns:
         result (dict): dictionary containing score, status and errors
     """
-    if status == "INVALID":
-        score_status = "INVALID"
+    if status == INVALID:
+        score_status = INVALID
         score1, score2, score3 = None, None, None
     else:
         # Unzipping the predictions and extracting the files in
         # the current working directory
         if ".zip" in os.path.basename(predictions_path):
-            with zipfile.ZipFile(predictions_path, 'r') as zip_ref:
+            with zipfile.ZipFile(predictions_path, "r") as zip_ref:
                 for zip_info in zip_ref.infolist():
                     if zip_info.is_dir():
                         continue
@@ -36,7 +42,7 @@ def score_submission(predictions_path: str, status: str) -> dict:
 
         # Checking if there are any files
         if len(predictions_files) == 0:
-            score_status = "INVALID"
+            score_status = INVALID
             message = "No predictions files found"
             score1, score2, score3 = None, None, None
 
@@ -50,12 +56,12 @@ def score_submission(predictions_path: str, status: str) -> dict:
             score1 = 1 + 1
             score2 = score1 * 2
             score3 = score1 * 3
-            score_status = "SCORED"
+            score_status = SCORED
             message = ""
         except Exception as e:
             message = f"Error {e} occurred while scoring"
             score1, score2, score3 = None, None, None
-            score_status = "INVALID"
+            score_status = INVALID
     result = {
         "score1": score1,
         "score2": score2,
