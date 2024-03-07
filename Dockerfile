@@ -1,10 +1,14 @@
 FROM ubuntu:22.04
 
+LABEL org.opencontainers.image.source=https://github.com/Sage-Bionetworks-Workflows/nf-synapse-challenge
+
 #install apt-get dependencies
 RUN apt-get update -y && apt-get upgrade -y && apt-get install -y \
     bash \
     curl \
-    gpg
+    gpg \
+    python3 \
+    python3-pip
 
 #Add the official Docker (apt-get) repository
 RUN mkdir -p /etc/apt/keyrings
@@ -17,4 +21,9 @@ RUN echo \
 
 #install docker
 RUN apt-get update -y && apt-get install -y \
-    docker-ce 
+    docker-ce
+
+# Install Python libraries using pip
+RUN pip3 install \
+    docker \
+    synapseclient
