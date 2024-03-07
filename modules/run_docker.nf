@@ -9,10 +9,11 @@ process RUN_DOCKER {
     
 
     input:
-    tuple val(submission_id), val(container)
+    tuple val(submission_id), val(image_id)
     path staged_path
     val cpus
     val memory
+    val ready
     val ready
 
     output:
@@ -21,6 +22,6 @@ process RUN_DOCKER {
     script:
     """
     echo \$SYNAPSE_AUTH_TOKEN | docker login docker.synapse.org --username foo --password-stdin
-    docker run -v \$PWD/input:/input:ro -v \$PWD:/output:rw $container
+    docker run -v \$PWD/input:/input:ro -v \$PWD:/output:rw $image_id
     """
 }
