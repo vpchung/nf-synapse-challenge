@@ -7,7 +7,7 @@ params.submissions = ""
 // Project Name (case-sensitive)
 params.project_name = "DPE-testing"
 // Synapse ID for Submission View
-params.view_id = "syn53475818"
+params.view_id = "syn53770151"
 // Synapse ID for Input Data folder
 params.input_id = "syn51390589"
 // E-mail template (case-sensitive. "no" to send e-mail without score update, "yes" to send an e-mail with)
@@ -27,10 +27,8 @@ assert params.email_with_score in ["yes", "no"], "Invalid value for ``email_with
 // import modules
 include { CREATE_SUBMISSION_CHANNEL } from '../subworkflows/create_submission_channel.nf'
 include { SYNAPSE_STAGE } from '../modules/synapse_stage.nf'
-include { GET_SUBMISSION_IMAGE } from '../modules/get_submission_image.nf'
 include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_BEFORE_RUN } from '../modules/update_submission_status.nf'
 include { CREATE_FOLDERS as CREATE_FOLDERS } from '../modules/create_folders.nf'
-include { UPDATE_FOLDERS as UPDATE_FOLDERS } from '../modules/update_folders.nf'
 include { RUN_DOCKER } from '../modules/run_docker.nf'
 include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_AFTER_RUN } from '../modules/update_submission_status.nf'
 include { UPDATE_SUBMISSION_STATUS as UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE } from '../modules/update_submission_status.nf'
@@ -44,11 +42,9 @@ include { SEND_EMAIL } from '../modules/send_email.nf'
 workflow MODEL_TO_DATA {
     submission_ch = CREATE_SUBMISSION_CHANNEL()
     SYNAPSE_STAGE(params.input_id, "input")
-    GET_SUBMISSION_IMAGE(submission_ch)
     CREATE_FOLDERS(submission_ch, "create", params.project_name)
     UPDATE_SUBMISSION_STATUS_BEFORE_RUN(submission_ch, "EVALUATION_IN_PROGRESS")
-    RUN_DOCKER(GET_SUBMISSION_IMAGE.output, SYNAPSE_STAGE.output, params.cpus, params.memory, CREATE_FOLDERS.output, UPDATE_SUBMISSION_STATUS_BEFORE_RUN.output)
-    UPDATE_FOLDERS(submission_ch, "update", params.project_name, RUN_DOCKER.output.map { it[1] })
+    RUN_DOCKER(submission_ch, SYNAPSE_STAGE.output, params.project_name, params.cpus, params.memory, CREATE_FOLDERS.output, UPDATE_SUBMISSION_STATUS_BEFORE_RUN.output)
     UPDATE_SUBMISSION_STATUS_AFTER_RUN(RUN_DOCKER.output.map { it[0] }, "ACCEPTED")
     VALIDATE(RUN_DOCKER.output, UPDATE_SUBMISSION_STATUS_AFTER_RUN.output, params.validation_script)
     UPDATE_SUBMISSION_STATUS_AFTER_VALIDATE(submission_ch, VALIDATE.output.map { it[2] })

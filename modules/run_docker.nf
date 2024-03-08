@@ -5,23 +5,23 @@ process RUN_DOCKER {
     secret "SYNAPSE_AUTH_TOKEN"
     cpus "${cpus}"
     memory "${memory}"
-    container "ghcr.io/sage-bionetworks-workflows/nf-model2data:latest"
+    container "ghcr.io/sage-bionetworks-workflows/nf-synapse-challenge:4.0"
     
 
     input:
-    tuple val(submission_id), val(image_id)
+    val submission_id
     path staged_path
+    val project_name
     val cpus
     val memory
     val ready
     val ready
 
     output:
-    tuple val(submission_id), path('predictions.{csv,zip}')
+    tuple val(submission_id), path('output/predictions.{csv,zip}')
 
     script:
     """
-    echo \$SYNAPSE_AUTH_TOKEN | docker login docker.synapse.org --username foo --password-stdin
-    docker run -v \$PWD/input:/input:ro -v \$PWD:/output:rw $image_id
+    run_docker.py '${project_name}' '${submission_id}'
     """
 }

@@ -7,7 +7,7 @@ process CREATE_FOLDERS {
     maxForks 1
     
     secret "SYNAPSE_AUTH_TOKEN"
-    container "sagebionetworks/synapsepythonclient:v4.0.0"
+    container "sagebionetworks/synapsepythonclient:v4.1.1"
 
     input:
     val submission_id
