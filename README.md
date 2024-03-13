@@ -140,6 +140,7 @@ nextflow run main.nf -entry DATA_TO_MODEL_CHALLENGE -profile local --manifest as
 
 ```mermaid
   flowchart LR;
+    L[SEND EMAIL BEFORE];
     A[SYNAPSE STAGE]-->G[SCORE];
     B[UPDATE STATUS]-->C[DOWNLOAD SUBMISSION];
     C-->D[VALIDATE];
@@ -149,14 +150,22 @@ nextflow run main.nf -entry DATA_TO_MODEL_CHALLENGE -profile local --manifest as
     F-->G;
     G-->H[ANNOTATE];
     G-->I[UPDATE STATUS];
-    H-->J[SEND EMAIL];
+    H-->J[SEND EMAIL AFTER];
     I-->J;
     J-->K[END];
 ```
 
 ## Profiles
 
-The workflow includes two preconfigured `profiles` for memory and CPU allocation for the `RUN_DOCKER` step of Model-to-Data challenges. The `local` profile includes `cpus` = `4` and `memory` = `16.GB`. This is intended to be used for runs on local machines with adequate resources. The `tower` profile dedicates double the resources (`cpus` = `8`; `memory` = `32.GB`) and can be used when running the workflow on Nextflow Tower for improved performance.
+### General Settings
+1. `local`:  Sets `cpus` = `4` and `memory` = `16.GB` for the `RUN_DOCKER` step of Model-to-Data challenges. 
+1. `tower`: Sets `cpus` = `8` and `memory` = `32.GB` for the `RUN_DOCKER` step of Model-to-Data challenges. Also includes settings for processes in need of flexible resource allocation.
+1. 'test': Sets `params.send_email` to `false`. To be used specifically for stress-testing.
+
+### Challenge-specific Settings
+1. `dynamic_challenge`: Includes Python script and Synapse Entity configuration for the AI Institute in Dynamic Systems Challenge.
+1. `pegs_challenge`: Includes Python script and Synapse Entity configuration for the PEGS Challenge.
+
 
 ## Adding Support for New Challenge Types
 

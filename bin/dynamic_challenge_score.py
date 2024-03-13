@@ -340,7 +340,7 @@ def calculate_all_scores(
 
                 for key, index in zip(score_keys, score_indices):
                     # set the score to 0 if negative
-                    score_result[f'{system}_{key}'] = max(scores[index], 0)
+                    score_result[f"{system}_{key}"] = max(scores[index], 0)
 
     return score_result
 
@@ -362,6 +362,7 @@ def score_submission(
     if status == INVALID:
         score_status = INVALID
         scores = None
+        message = f"Submission was not scored due to {INVALID} status"
     else:
         try:
             # assume predictions are compressed into a tarball file
