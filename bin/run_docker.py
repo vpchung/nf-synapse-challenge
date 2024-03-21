@@ -9,12 +9,13 @@ https://github.com/Sage-Bionetworks-Challenges/model-to-data-challenge-workflow/
 
 import os
 import sys
+from glob import glob
 from typing import Optional, Union
 
 import docker
 import synapseclient
 
-from create_folders import create_folders
+import helpers
 
 
 def get_submission_image(syn: synapseclient.Synapse, submission_id: str) -> str:
@@ -42,7 +43,9 @@ def get_submission_image(syn: synapseclient.Synapse, submission_id: str) -> str:
 
 
 def create_log_file(
-    log_filename: str, log_text: Optional[Union[str, bytes]] = None
+    log_file_name: str,
+    log_file_path: Optional[Union[None, str]] = None,
+    log_text: Optional[Union[str, bytes]] = None,
 ) -> None:
     """
     Creates the Docker submission execution log file.
@@ -54,72 +57,23 @@ def create_log_file(
         log_filename: The name of the log file to create
         log_text: The text to write to the log file. If given as a byte string,
                   it will be decoded as UTF-8 before being written.
+
     """
-    with open(log_filename, "w", encoding="ascii", errors="ignore") as log_file:
+    if not log_file_path:
+        log_file_path = os.getcwd()
+
+    with open(
+        os.path.join(log_file_path, log_file_name),
+        "w",
+        encoding="ascii",
+        errors="ignore",
+    ) as log_file:
         if log_text is not None:
             if isinstance(log_text, bytes):
                 log_text = log_text.decode("utf-8")
             log_file.write(log_text)
         else:
             log_file.write("No Logs")
-
-
-def store_log_file(
-    syn: Union[None, synapseclient.Synapse],
-    project: str,
-    log_filename: str,
-    submission_id: str,
-) -> None:
-    """
-    Store the Docker submission execution log file on Synapse.
-
-    This function stores the given log file on Synapse under the corresponding log folder
-    for the given submission.
-
-    Arguments:
-        project: The name of the Synapse project to store the log file in
-        log_filename: The name of the log file to store
-        submission_id: The ID of the submission to store the log file for
-    """
-    statinfo = os.stat(log_filename)
-    if statinfo.st_size > 0:
-        create_folders(
-            project_name=project,
-            submission_id=submission_id,
-            create_or_update="update",
-            predictions_file=None,
-            log_file=log_filename,
-            syn=syn,
-        )
-
-
-def store_predictions_file(
-    syn: Union[None, synapseclient.Synapse],
-    project: str,
-    predictions_filename: str,
-    submission_id: str,
-) -> None:
-    """
-    Store predictions file on Synapse
-
-    This function stores the given predictions file on Synapse under the
-    corresponding predictions folder for the given submission.
-
-    Arguments:
-        project: The name of the Synapse project to store the predictions file in
-        predictions_filename: The name of the predictions file to store
-        submission_id: The ID of the submission to store the predictions file for
-    """
-    statinfo = os.stat(predictions_filename)
-    if statinfo.st_size > 0:
-        create_folders(
-            project_name=project,
-            submission_id=submission_id,
-            create_or_update="update",
-            predictions_file=predictions_filename,
-            log_file=None,
-            syn=syn,
-        )
 
 
 def mount_volumes() -> dict:
@@ -155,24 +109,34 @@ def mount_volumes() -> dict:
     return volumes
 
 
-def run_docker(project: str, submission_id: str, log_filename: str = "docker.log") -> None:
+def run_docker(
+    submission_id: str, log_file_name: str = "docker.log", rename_output: bool = True
+) -> None:
     """
     A function to run a Docker container with the specified image and handle any exceptions that may occur.
 
     This function will run a Docker container using the image specified by the
     ``submission_id`` argument, and will mount the input/ and output/ directories
     in the current working directory to the corresponding locations in the
-    container. If the container runs successfully, the function will copy any
-    generated predictions file in the /output directory to Synapse. If the
-    container fails, the function will store the error message in a log file on
-    Synapse.
+    container. If the container runs successfully, the function will store any
+    generated predictions file in the /output directory to Synapse, along with
+    any logs generated. If the container run fails, the function will store the
+    error message in a log file on Synapse.
 
     Args:
-        project: The Synapse project ID where the submission is located.
         submission_id: The ID of the submission to run.
+        log_file_name: The name of the log file to create.
+        rename_output: If True, renames the output file to include the submission ID.
+                       For example, if the submission ID is '123' and the output file is 'predictions.csv',
+                       then the 'predictions.csv' file is renamed to '123_predictions.csv'.
 
     Returns:
         None
+
+    Raises:
+        ValueError: If the output directory does not exist, or if the predictions file is not found
+                    in the output directory after running the Docker container.
+
     """
     # Get the Synapse authentication token from the environment variable
     synapse_auth_token: str = os.environ["SYNAPSE_AUTH_TOKEN"]
@@ -196,6 +160,9 @@ def run_docker(project: str, submission_id: str, log_filename: str = "docker.log
     # Get the Docker image ID from the submission
     docker_image = get_submission_image(syn, submission_id)
 
+    # Assign the path to the log file
+    log_file_path = os.path.join(os.getcwd(), "output")
+
     # Run the docker image using the client:
     # We use ``detach=False`` and ``stderr=True``
     # to catch for and log possible errors in the logfile.
@@ -211,51 +178,46 @@ def run_docker(project: str, submission_id: str, log_filename: str = "docker.log
 
         log_text = container
 
-        # Assuming the predictions file is generated in the /output directory
-        predictions_csv_path = os.path.join(os.getcwd(), "output", "predictions.csv")
-        predictions_zip_path = os.path.join(os.getcwd(), "output", "predictions.zip")
-
-        # Retrieve the output CSV or ZIP predictions file and store it on Synapse
-        if os.path.exists(predictions_csv_path):
-            store_predictions_file(
-                syn=syn,
-                project=project,
-                predictions_filename=predictions_csv_path,
-                submission_id=submission_id,
-            )
-        elif os.path.exists(predictions_zip_path):
-            store_predictions_file(
-                syn=syn,
-                project=project,
-                predictions_filename=predictions_zip_path,
-                submission_id=submission_id,
-            )
-
     except Exception as e:
         log_text = str(e).replace("\\n", "\n")
-        create_log_file(log_filename=log_filename, log_text=log_text)
-        store_log_file(
-            syn=syn,
-            project=project,
-            log_filename=f"docker.log",
-            submission_id=submission_id,
+        create_log_file(
+            log_file_name=log_file_name, log_file_path=log_file_path, log_text=log_text
         )
+
         raise
 
     # Create log file and store the log message (``log_text``) inside
-    create_log_file(log_filename=log_filename, log_text=log_text)
-
-    # Store the log file on Synapse under its corresponding folder
-    store_log_file(
-        syn=syn,
-        project=project,
-        log_filename=f"docker.log",
-        submission_id=submission_id,
+    create_log_file(
+        log_file_name=log_file_name, log_file_path=log_file_path, log_text=log_text
     )
+
+    # Rename the predictions file if requested
+    if rename_output:
+        # Get the output directory based on the mounted volumes dictionary used to run the container
+        output_dir = next(
+            (key for key in volumes.keys() if "output" in volumes[key]["bind"]), None
+        )
+        if not os.path.exists(output_dir):
+            raise ValueError("Output directory found in ``volumes`` does not exist.")
+
+        # Get the predictions file, assuming the file exists. Otherwise, ``predictions_file = None``
+        predictions_file = next(
+            (
+                file
+                for file in glob(os.path.join(output_dir, "predictions.*"))
+                if os.path.exists(file)
+            ),
+            None,
+        )
+        if predictions_file is None:
+            raise ValueError("No predictions file found in output directory.")
+
+        # Rename the predictions file to include the submission ID
+        helpers.rename_file(submission_id, predictions_file)
 
 
 if __name__ == "__main__":
-    project = sys.argv[1]
-    submission_id = sys.argv[2]
+    submission_id = sys.argv[1]
+    log_file_name = f"{submission_id}_docker.log"
 
-    run_docker(project, submission_id)
+    run_docker(submission_id, log_file_name=log_file_name)
