@@ -11,6 +11,8 @@ params.view_id = "syn53770151"
 params.input_id = "syn51390589"
 // E-mail template (case-sensitive. "no" to send e-mail without score update, "yes" to send an e-mail with)
 params.email_with_score = "yes"
+// Ensuring correct input parameter values
+assert params.email_with_score in ["yes", "no"], "Invalid value for ``email_with_score``. Can either be ''yes'' or ''no''."
 // Default CPUs to dedicate to RUN_DOCKER
 params.cpus = "4"
 // Default Memory to dedicate to RUN_DOCKER
@@ -19,12 +21,12 @@ params.memory = "16.GB"
 params.scoring_script = "model_to_data_score.py"
 // Validation Script
 params.validation_script = "validate.py"
-// Ensuring correct input parameter values
-assert params.email_with_score in ["yes", "no"], "Invalid value for ``email_with_score``. Can either be ''yes'' or ''no''."
-// toggle email notification
+// Toggle email notification
 params.send_email = true
-// set email script
+// Set email script
 params.email_script = "send_email.py"
+// The folder(s) below will be private (available only to admins)
+params.private_folders = "predictions"
 
 // import modules
 include { CREATE_SUBMISSION_CHANNEL } from '../subworkflows/create_submission_channel.nf'
@@ -45,7 +47,7 @@ include { SEND_EMAIL } from '../modules/send_email.nf'
 workflow MODEL_TO_DATA {
     submission_ch = CREATE_SUBMISSION_CHANNEL()
     SYNAPSE_STAGE(params.input_id, "input")
-    CREATE_FOLDERS(submission_ch, "create", params.project_name)
+    CREATE_FOLDERS(submission_ch, params.project_name, params.private_folders)
     UPDATE_SUBMISSION_STATUS_BEFORE_RUN(submission_ch, "EVALUATION_IN_PROGRESS")
     RUN_DOCKER(submission_ch, SYNAPSE_STAGE.output, params.cpus, params.memory, CREATE_FOLDERS.output, UPDATE_SUBMISSION_STATUS_BEFORE_RUN.output)
     UPDATE_FOLDERS(submission_ch, params.project_name, RUN_DOCKER.output.map { it[1] }, RUN_DOCKER.output.map { it[2] })
