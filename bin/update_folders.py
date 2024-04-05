@@ -116,5 +116,5 @@ if __name__ == "__main__":
         project_name=project_name,
         submission_id=submission_id,
         folder_name=folder_name,
-        input_file=file_name
+        input_file=file_name,
     )
