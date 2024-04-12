@@ -107,6 +107,7 @@ def handle_outputs(output_path: str, output_file_name: str, log_text: str):
 
 def create_log_file(
     log_file_name: str,
+    log_max_size: int,
     log_file_path: Optional[Union[None, str]] = None,
     log_text: Optional[Union[str, bytes]] = None,
 ) -> None:
@@ -117,26 +118,47 @@ def create_log_file(
     If no text is given, it writes "No Logs" to the file.
 
     Arguments:
-        log_filename: The name of the log file to create
-        log_text: The text to write to the log file. If given as a byte string,
-                  it will be decoded as UTF-8 before being written.
+        log_file_name: The name of the log file to create
+        log_max_size: The maximum size of the log file in kilobytes
+        log_file_path: The path where the log file will be created.
+                       If not specified, the current working directory will be used.
+        log_text: The text to write to the log file
 
     """
-    if not log_file_path:
+    if log_file_path is None:
         log_file_path = os.getcwd()
+
+    # Get the size of the log text
+    log_text = log_text or "No Logs"
+    log_text_size = (
+        len(log_text)
+        if isinstance(log_text, bytes)
+        else len(str(log_text).encode("utf-8"))
+    )
+
+    # Decode the log text if it is bytes
+    log_text = (
+        log_text.decode("utf-8", "ignore") if isinstance(log_text, bytes) else log_text
+    )
+
+    # Truncate the log message if it exceeds the maximum size
+    if log_text_size > log_max_size * 1000:
+        print(f"Original log message exceeds {log_max_size} Kb. Truncating...")
+        log_text = log_text[-(log_max_size * 1000) :]
 
     with open(
         os.path.join(log_file_path, log_file_name),
         "w",
-        encoding="ascii",
+        encoding="utf-8",
         errors="ignore",
     ) as log_file:
-        if log_text is not None:
-            if isinstance(log_text, bytes):
-                log_text = log_text.decode("utf-8")
-            log_file.write(log_text)
-        else:
-            log_file.write("No Logs")
+        log_file.write(log_text)
+
+    # Add some print statements to notify those monitoring the workflow
+    if log_text_size <= log_max_size * 1000:
+        print(f"Log file created: {log_file_name}")
+    else:
+        print(f"Truncated log file created: {log_file_name}")
 
 
 def mount_volumes() -> dict:
@@ -173,7 +195,10 @@ def mount_volumes() -> dict:
 
 
 def run_docker(
-    submission_id: str, log_file_name: str = "docker.log", rename_output: bool = True
+    submission_id: str,
+    log_file_name: str = "docker.log",
+    log_max_size: int = 50,
+    rename_output: bool = True,
 ) -> None:
     """
     A function to run a Docker container with the specified image and handle any exceptions that may occur.
@@ -189,6 +214,7 @@ def run_docker(
     Args:
         submission_id: The ID of the submission to run.
         log_file_name: The name of the log file to create.
+        log_max_size: The maximum size of the log file that will be written, in kilobytes
         rename_output: If True, renames the output file to include the submission ID.
                        For example, if the submission ID is '123' and the output file is 'predictions.csv',
                        then the 'predictions.csv' file is renamed to '123_predictions.csv'.
@@ -241,9 +267,15 @@ def run_docker(
 
     # Capture any errors that may occur during the attempt to run the container
     except Exception as e:
+        # Reformat the error message
         log_text = str(e).replace("\\n", "\n")
+
+        # Create log file and store the log error message (``log_text``) inside
         create_log_file(
-            log_file_name=log_file_name, log_file_path=output_path, log_text=log_text
+            log_file_name=log_file_name,
+            log_max_size=log_max_size,
+            log_file_path=output_path,
+            log_text=log_text,
         )
 
     # Handle any outputs from the container run in the ``output/`` directory.
@@ -254,7 +286,10 @@ def run_docker(
 
     # Create log file and store the log message (``log_text``) inside
     create_log_file(
-        log_file_name=log_file_name, log_file_path=output_path, log_text=log_text
+        log_file_name=log_file_name,
+        log_max_size=log_max_size,
+        log_file_path=output_path,
+        log_text=log_text,
     )
 
     # Rename the predictions file if requested
@@ -264,6 +299,7 @@ def run_docker(
 
 if __name__ == "__main__":
     submission_id = sys.argv[1]
+    log_max_size = int(sys.argv[2])
     log_file_name = f"{submission_id}_docker.log"
 
-    run_docker(submission_id, log_file_name=log_file_name)
+    run_docker(submission_id, log_file_name=log_file_name, log_max_size=log_max_size)
