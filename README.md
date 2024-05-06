@@ -14,7 +14,7 @@ or on Nextflow Tower by using the `Workflow entry name` field under `Advanced op
 
 This workflow expects a secret called `SYNAPSE_AUTH_TOKEN` (a Synapse Authentication Token). This secret should be configured in your local installation of Nextflow for local runs, or as a workspace secret in your Nextflow Tower workspace. Ensure that the token you use has access to any Synapse views and folders that you intend to use as inputs to the workflow.
 
-**Note:** All default parameter values for Synapse project or objects (`view_id` and `input_id`) currently point to a Synapse project that only DPE team members have access to. Unless you have access to the `DPE-Testing` Synapse project, you will not be able to test this workflow with the default values using your `SYNAPSE_AUTH_TOKEN`.
+**Note:** All default parameter values for Synapse project or objects (e.g. `view_id`, `data_folder_id`) currently point to a Synapse project that only DPE team members have access to. Unless you have access to the `DPE-Testing` Synapse project, you will not be able to test this workflow with the default values using your `SYNAPSE_AUTH_TOKEN`.
 
 ## Supported Challenge Types
 
@@ -51,26 +51,43 @@ In order to use this workflow, you must already have completed the following ste
 1. Created a submission view that includes the `id` and `status` columns.
 1. Added the input data for evaluating submissions to a folder within your Synapse project.
 
-### Running the workflow
+### Configuring the workflow
 
 The workflow takes the following inputs:
-
-***Note:*** You must provide one of `submissions` or `manifest`. If you provide both, `submissions` will take precedence. Generally, `submissions` should be used for testing and `manifest` for automation.
 
 1. `submissions` (required if `manifest` is not provided): A comma separated list of submission IDs to evaluate.
 1. `manifest` (required if `submissions` is not provided): A path to a submission manifest containing submissions IDs to evaluate.
 1. `project_name` (required & case-sensitive): The name of your Project the Challenge is running in. Please replace placeholder value.
 1. `view_id` (required): The Synapse ID for your submission view. Please replace placeholder value.
-1. `input_id` (required): The Synapse ID for the folder holding the testing data for submissions. Please replace placeholder value.
+1. `data_folder_id` (required): The Synapse ID for the folder holding the testing or validation data for submissions. Please replace placeholder value.
+1. `goldstandard_id` (required): The Synapse ID for the gold standard file that will be used for evaluating the submissions. Please replace placeholder value.
 1. `email_with_score` (optional & case-sensitive): Choose whether or not the e-mail sent out to participants will include the evaluation score or not. Can either be "yes" or "no". Defaults to "yes".
-1. `cpus` (optional): Number of CPUs to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `4`
-1. `memory` (optional): Amount of memory to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `16.GB`
-1. `scoring_script` (optional): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `model_to_data_score.py`
-1. `validation_script` (optional): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
+1. `cpus` (optional): Number of CPUs to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `4`.
+1. `memory` (optional): Amount of memory to dedicate to the `RUN_DOCKER` process i.e. the challenge executions. Defaults to `16.GB`.
+1. `challenge_container` (optional): The name of the container that the scoring and validation scripts are housed in, and will be executed in, during the validation and scoring steps of the workflow. Defaults to `ghcr.io/jaymedina/test_model2data:latest`.
+1. `execute_scoring` (optional): This string should be `[interpreter] [path to script]` e.g. `python3 path/to/score.py`. This is the command that will be used to execute the scoring script for the `SCORE` step of the workflow run (without the arguments, which are appended later). Keep in mind this will execute at the base of your repository, so if the file is in the base directory, just use the file name. Defaults to `python3 /usr/local/bin/score.py`.
+1. `execute_validation` (optional): This string should be `[interpreter] [path to script]` e.g. `python3 path/to/validate.py`. This is the command that will be used to execute the validation script for the `VALIDATE` step of the workflow run (without the arguments, which are appended later). Keep in mind this will execute at the base of your repository, so if the file is in the base directory, just use the file name. Defaults to `python3 /usr/local/bin/validate.py`.
 1. `send_email` (optional): If `true`, sends an e-mail to the submitter on the status of their submission. Default is `true`.
 1. `email_script` (required if `send_email` is `true`): If `send_email` is `true`, choose an e-mail template to send to submitters on the status of their submission. Default is a generic `send_email.py` template.
-1. `private_folders` (optional & case-sensitive): Choose which folder(s), if any, should be set to private (i.e. only available to Challenge organizers). Must be a comma-separated string of folder names, e.g. "predictions,docker_logs"
+1. `private_folders` (optional & case-sensitive): Choose which folder(s), if any, should be set to private (i.e. only available to Challenge organizers). Must be a comma-separated string of folder names, e.g. "predictions,docker_logs".
 1. `log_max_size` (optional): The maximum size of the Docker execution log (in kilobytes). Defaults to 50 kb.
+
+If you are new to containerization, [see here](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) for how to create and publish your own container on the GitHub container registry.
+
+> [!warning]
+> Before modifying the input parameters, there are some things to consider...
+> * You must provide one of `submissions` or `manifest`. If you provide both, `submissions` will take precedence. Generally, `submissions` should be used for testing and `manifest` for automation.
+> * Your input scoring and validation scripts should be named `score.py` and `validate.py`, respectively, and will be called upon in the following format:
+> ```
+> [python_script_name] [predictions_file] [gold_standard_file] [output_file]`
+> ```
+> Example:
+> ```
+> validate.py predictions.csv gold_standard_validate.csv results.json
+> ```
+> Ensure that your script can be called in this way without issue.
+
+### Running the workflow
 
 Run the workflow locally with default inputs and a `submissions` string input:
 ```
@@ -116,7 +133,7 @@ In order to use this workflow, you must already have completed the following ste
 1. One or more data files have already been submitted to your evaluation queue.
 1. Created a submission view that includes the `id` and `status` columns.
 
-### Running the workflow
+### Configuring the workflow
 
 The workflow requires the following inputs:
 
@@ -125,13 +142,14 @@ The workflow requires the following inputs:
 1. `submissions` (required if `manifest` is not provided): A comma separated lis tof submission IDs to evaluate.
 1. `manifest` (required if `submissions` is not provided): A path to a submission manifest containing submissions IDs to evaluate.
 1. `view_id` (required): The Synapse ID for your submission view.
-1. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `data_to_model_score.py`
-1. `validation_script` (required): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`
+1. `scoring_script` (required): The string name of the scoring script to use for the `SCORE` step of the workflow run. Defaults to `data_to_model_score.py`.
+1. `validation_script` (required): The string name of the validation script to use for the `VALIDATE` step of the workflow run. Defaults to `validate.py`.
 1. `testing_data` (required): The Synapse ID for the folder holding the testing data for submissions.
 1. `email_with_score` (optional & case-sensitive): Choose whether or not the e-mail sent out to participants will include the evaluation score or not. Can either be "yes" or "no". Defaults to "yes".
 1. `send_email` (optional): If `true`, sends an e-mail to the submitter on the status of their submission. Default is `true`.
 1. `email_script` (required if `send_email` is `true`): If `send_email` is `true`, choose an e-mail template to send to submitters on the status of their submission. Default is a generic `send_email.py` template.
 
+### Running the workflow
 
 Run the workflow locally with default inputs and a `submissions` string input:
 ```

@@ -1,21 +1,22 @@
-// validate submission results
+// validate submission results for model-to-data submissions
 process VALIDATE {
     tag "${submission_id}"
     label "flexible_compute"
     
     secret "SYNAPSE_AUTH_TOKEN"
-    container "sagebionetworks/synapsepythonclient:v4.0.0"
+    container params.challenge_container
 
     input:
     tuple val(submission_id), path(predictions)
+    path goldstandard
     val ready
-    val validation_script
+    val execute_validation
 
     output:
     tuple val(submission_id), path(predictions), env(status), path("results.json")
 
     script:
     """
-    status=\$(${validation_script} '${submission_id}' '${predictions}')
+    status=\$(${execute_validation} '${predictions}' '${goldstandard}' 'results.json')
     """
 }

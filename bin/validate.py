@@ -7,8 +7,10 @@ import sys
 import zipfile
 
 if __name__ == "__main__":
-    submission_id = sys.argv[1]
-    predictions_path = sys.argv[2]
+    predictions_path = sys.argv[1]
+    goldstandard_path = sys.argv[2]
+    results = sys.argv[3]
+
     invalid_reasons = []
     if "INVALID" in predictions_path:
         prediction_status = "INVALID"
@@ -29,10 +31,12 @@ if __name__ == "__main__":
         # Grabbing the extracted predictions files
         predictions_files = glob.glob(os.path.join(os.getcwd(), "*.csv"))
 
-        # Checking if there are any files
-        if len(predictions_files) == 0:
-            prediction_status = "INVALID"
-            invalid_reasons.append("Predictions file(s) not generated from Docker container")
+        # Grabbing the gold standard file
+        gs_file = glob.glob(os.path.join(goldstandard_path, "*"))[0]
+
+        # Validating file contents
+        with open(gs_file, "r") as sub_file:
+            message = sub_file.read()
 
         # Validating file contents
         for file in predictions_files:

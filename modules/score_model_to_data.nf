@@ -3,19 +3,20 @@ process SCORE_MODEL_TO_DATA {
     tag "${submission_id}"
     
     secret "SYNAPSE_AUTH_TOKEN"
-    container "python:3.12.0rc1"
+    container params.challenge_container
 
     input:
     tuple val(submission_id), path(predictions), val(status), path(results)
+    path goldstandard
     val status_ready
     val annotate_ready
-    val scoring_script
+    val execute_scoring
 
     output:
     tuple val(submission_id), path(predictions), env(status), path("results.json")
 
     script:
     """
-    status=\$(${scoring_script} '${predictions}' '${results}' '${status}')
+    status=\$(${execute_scoring} '${predictions}' '${goldstandard}' '${results}')
     """
 }
