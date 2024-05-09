@@ -13,8 +13,14 @@ https://github.com/Sage-Bionetworks-Challenges/model-to-data-challenge-workflow/
 
 import os
 import sys
+import json
 from glob import glob
-from typing import Optional, Union, List, NamedTuple
+from typing import (
+    Optional,
+    Union,
+    List,
+    NamedTuple,
+)
 from zipfile import ZipFile
 
 import docker
@@ -31,6 +37,25 @@ class UpdatedMessages(NamedTuple):
 class OutputsHandled(NamedTuple):
     output_file: str
     log_text: str
+
+
+def get_entity_type(syn: synapseclient.Synapse, submission_id: str) -> str:
+    """
+    Retrieves entity type from submission
+
+    Arguments:
+        syn: Synapse connection
+        submission_id: Submission ID to be queried
+
+    Returns:
+        Entity type of the submission
+
+    """
+    file_handle = syn.getSubmission(submission_id)
+    entity_bundle = json.loads(file_handle.get('entityBundleJSON'))
+    entity_type = entity_bundle.get('entityType')
+
+    return entity_type
 
 
 def get_submission_image(syn: synapseclient.Synapse, submission_id: str) -> str:
@@ -51,7 +76,13 @@ def get_submission_image(syn: synapseclient.Synapse, submission_id: str) -> str:
     docker_repository = submission.get("dockerRepositoryName", None)
     docker_digest = submission.get("dockerDigest", None)
     if not docker_digest or not docker_repository:
-        raise ValueError(f"Submission {submission_id} has no associated Docker image.")
+
+        entity_type = get_entity_type(syn, submission_id)
+        input_error = (
+            f"InputError: Submission {submission_id} should be a Docker image, not {entity_type}"
+        )
+        print(input_error)
+        return input_error
     image_id = f"{docker_repository}@{docker_digest}"
 
     return image_id
@@ -267,6 +298,44 @@ def mount_volumes() -> dict:
     return volumes
 
 
+def validate_submission(
+    docker_image: str, output_path: str, output_file_name: str
+) -> None:
+    """
+    Validates the Docker image for the submission
+
+    Arguments:
+        docker_image: Docker image identifier in the format: '<image_name>@<sha_code>'
+        output_path: Path to the output directory that houses the output file and log file
+        output_file_name: Name of the output file generated from the container
+
+    """
+    # If the submission is not a Docker image, create an invalid output file
+    # store the error message in a log file, and end the script call
+    if "InputError" in docker_image:
+
+        # Make the output directory since it wouldnt' exist without running the container
+        os.makedirs(output_path)
+
+        # Create an invalid output file
+        make_invalid_output(
+            file_name=output_file_name + ".csv",
+            log_file_path=output_path,
+            file_content=docker_image,
+        )
+
+        create_log_file(
+            log_file_name=log_file_name,
+            log_max_size=log_max_size,
+            log_file_path=output_path,
+            log_text=docker_image,
+        )
+
+        return "INVALID"
+
+    return "VALID"
+
+
 def run_docker(
     submission_id: str,
     log_file_name: str = "docker.log",
@@ -323,6 +392,13 @@ def run_docker(
         (key for key in volumes.keys() if "output" in volumes[key]["bind"]), None
     )
 
+    output_file_name = "predictions"
+
+    # Ensure the submission is a valid Docker image
+    validation_result = validate_submission(docker_image, output_path, output_file_name)
+    if validation_result == "INVALID":
+        return
+
     # Run the docker image using the client:
     # We use ``detach=False`` and ``stderr=True``
     # to catch for and log possible errors in the logfile.
@@ -354,7 +430,7 @@ def run_docker(
     # Handle any outputs from the container run in the ``output/`` directory, and its contents.
     # This means: An expected output file, more than 1 output file, no output file, or an empty output file.
     outputs_handled = handle_outputs(
-        output_path=output_path, output_file_name="predictions", log_text=log_text
+        output_path=output_path, output_file_name=output_file_name, log_text=log_text
     )
 
     # Create log file and store the log message (``log_text``) inside
