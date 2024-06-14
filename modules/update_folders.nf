@@ -7,11 +7,10 @@ process UPDATE_FOLDERS {
     input:
     val submission_id
     val project_name
-    path predictions_file
-    path docker_log_file
+    tuple path(predictions_file), path(docker_log_file)
 
     output:
-    val "ready"
+    tuple val(submission_id), path(predictions_file), val("status"), path("output_annotation*.json")
 
     script:
     """
